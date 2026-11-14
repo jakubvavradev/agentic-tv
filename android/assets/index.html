@@ -47,8 +47,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:transparent;color:#f
   filter:url(#lgText) drop-shadow(0 .5vh 2.2vh rgba(0,0,0,.28))}
 
 /* Movable analog clock displayed above the foreground scene. */
-#towerClock{position:fixed;z-index:3;left:72vw;top:26vh;width:5vh;height:5vh;transform:translate(-50%,-50%);pointer-events:none;display:none;
- filter:drop-shadow(0 .2vh .5vh rgba(0,0,0,.65))}
+#towerClock{position:fixed;z-index:3;left:50vw;top:29vh;width:40vh;height:40vh;transform:translate(-50%,-50%);pointer-events:none;display:none;
+ filter:drop-shadow(0 1.2vh 2.4vh rgba(0,0,0,.45))}
 #towerClock svg{width:100%;height:100%;display:block}
 /* clock editor: a glowing frame glides after the clock, a glass capsule names the clock, the step and the keys */
 body.clock-layout #towerClock{transition:left .35s var(--spring),top .35s var(--spring),width .35s var(--spring),height .35s var(--spring)}
@@ -238,7 +238,7 @@ setTimeout(ready, 2500);                                             // safety: 
 const loadJ = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 const saveJ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 const load = k => { const v = loadJ(k); return Array.isArray(v) ? v : null; };
-const VERSION = call('version') || '1.1.1', REPO = 'jakubvavradev/agentic-tv';
+const VERSION = call('version') || '1.1.2', REPO = 'jakubvavradev/agentic-tv';
 
 /* ---------- preferences: what the user picked, else derived from where the TV is (IP location) ----------
    Language, dock preset, °C/°F and 12/24 h follow the country until the user changes them in the preferences sheet. */
@@ -286,7 +286,6 @@ const STR = {
   clockStyle: ['Styl hodin', 'Štýl hodín', 'Clock style', 'Uhrenstil', 'Styl zegara', 'Style d’horloge', 'Estilo de reloj', 'Stile orologio'],
   digital: ['Digitální', 'Digitálne', 'Digital', 'Digital', 'Cyfrowy', 'Numérique', 'Digital', 'Digitale'],
   tower: ['Katedrála', 'Katedrála', 'Cathedral', 'Kathedrale', 'Katedra', 'Cathédrale', 'Catedral', 'Cattedrale'],
-  both: ['Obojí', 'Oboje', 'Both', 'Beide', 'Oba', 'Les deux', 'Ambos', 'Entrambi'],
   layout: ['Umístění hodin', 'Umiestnenie hodín', 'Clock position', 'Uhrposition', 'Położenie zegara', 'Position de l’horloge', 'Posición del reloj', 'Posizione orologio'],
   edit: ['Upravit', 'Upraviť', 'Adjust', 'Anpassen', 'Dostosuj', 'Ajuster', 'Ajustar', 'Regola'],
   resetClock: ['Obnovit výchozí hodiny', 'Obnoviť predvolené hodiny', 'Reset clock to default', 'Uhr zurücksetzen', 'Przywróć domyślny zegar', 'Réinitialiser l’horloge', 'Restablecer reloj', 'Ripristina orologio'],
@@ -584,7 +583,7 @@ const PROWS = [
   {k: 'temp', label: 'temp', opts: ['c', 'f'], show: v => v === 'c' ? '°C' : '°F'},
   {k: 'clock', label: 'clock', opts: ['24', '12'], show: v => v + ' h'},
   {k: 'fx', label: 'fx', opts: ['full', 'eco'], show: v => T(v === 'full' ? 'full' : 'eco')},
-  {k: 'clockStyle', label: 'clockStyle', opts: ['digital', 'tower', 'both'], show: T, get: () => ClockLayout.style(), set: v => ClockLayout.setStyle(v)},
+  {k: 'clockStyle', label: 'clockStyle', opts: ['digital', 'tower'], show: T, get: () => ClockLayout.style(), set: v => ClockLayout.setStyle(v)},
   {k: 'clockLayout', label: 'layout', show: () => T('edit') + ' ›'},
   {k: 'clockReset', label: 'resetClock', show: () => resetDone ? '✓' : ''},
   {k: 'update', label: 'update', show: () => ({idle: T('check'), checking: T('checking'), latest: T('latest'), avail: `${T('install')} ${upd.v}`,
