@@ -190,14 +190,14 @@ const q = new URLSearchParams(location.search);
 const DEMO = [['com.netflix.ninja', 'Netflix'], ['com.google.android.youtube.tv', 'YouTube'], ['com.amazon.amazonvideo.livingroom', 'Prime Video'],
   ['com.disney.disneyplus', 'Disney+'], ['com.wbd.stream', 'Max'], ['com.spotify.tv.android', 'Spotify'], ['com.apple.atve.androidtv.appletv', 'Apple TV'],
   ['tv.twitch.android.app', 'Twitch'], ['org.videolan.vlc', 'VLC'], ['com.android.chrome', 'Chrome']].map(([pkg, label]) => ({pkg, label, banner: `demo/${label.replace(/\W/g, '').toLowerCase()}.svg`}));
-const native = window.Android || {apps: () => JSON.stringify(DEMO), launch: p => console.log('launch', p), version: () => '1.0.0'};
+const native = window.Android || {apps: () => JSON.stringify(DEMO), launch: p => console.log('launch', p), version: () => '1.1.0'};
 const call = (f, ...a) => { try { return native[f] && native[f](...a); } catch (e) {} };
 const ready = () => { document.documentElement.classList.remove('boot'); call('ready'); };
 setTimeout(ready, 2500);                                             // safety: show whatever is there
 const loadJ = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 const saveJ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 const load = k => { const v = loadJ(k); return Array.isArray(v) ? v : null; };
-const VERSION = call('version') || '1.0.0', REPO = 'jakubvavradev/agentic-tv';
+const VERSION = call('version') || '1.1.0', REPO = 'jakubvavradev/agentic-tv';
 
 /* ---------- preferences: what the user picked, else derived from where the TV is (IP location) ----------
    Language, dock preset, °C/°F and 12/24 h follow the country until the user changes them in the preferences sheet. */
