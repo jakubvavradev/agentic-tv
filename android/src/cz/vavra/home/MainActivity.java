@@ -295,8 +295,12 @@ public class MainActivity extends Activity {
                         java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
                         c.setInstanceFollowRedirects(true); c.setConnectTimeout(15000); c.setReadTimeout(30000);
                         try (java.io.InputStream in = c.getInputStream(); java.io.OutputStream out = s.openWrite("update.apk", 0, -1)) {
-                            byte[] buf = new byte[65536]; int n;
-                            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                            byte[] buf = new byte[65536]; int n, last = -1; long got = 0, total = c.getContentLengthLong();
+                            while ((n = in.read(buf)) > 0) {
+                                out.write(buf, 0, n); got += n;
+                                int pct = total > 0 ? (int) (got * 100 / total) : -1;
+                                if (pct >= 0 && pct != last) { last = pct; final int p = pct; runOnUiThread(() -> js("window.onUpdateProgress&&onUpdateProgress(" + p + ")")); }
+                            }
                             s.fsync(out);
                         }
                         Intent back = new Intent(MainActivity.this, MainActivity.class).setAction(INSTALL);
