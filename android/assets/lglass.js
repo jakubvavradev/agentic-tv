@@ -193,7 +193,7 @@ void main(){
     const glyphs = x => {
       x.font = `${o.width || ''} ${o.weight} ${o.size * d}px ${o.font}`.trim(); x.textAlign = 'center'; x.textBaseline = 'alphabetic';
       try { x.letterSpacing = `${o.tracking * o.size * d}px`; } catch (e) {}
-      x.fillStyle = '#fff'; x.save(); x.translate(cw / 2, o.baseline * d); x.scale(1, o.stretch); x.fillText(text, 0, 0); x.restore();
+      x.fillStyle = '#fff'; x.save(); x.translate((o.x ?? innerWidth / 2) * d, o.baseline * d); x.scale(1, o.stretch); x.fillText(text, 0, 0); x.restore();
     };
     const mask = mk(glyphs);
     const hf = mk(x => { x.filter = `blur(${o.bevel * d}px)`; x.drawImage(mask, 0, 0); });

@@ -46,6 +46,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:transparent;color:#f
   background-size:100% 100%,108vw 108vh;background-repeat:no-repeat;-webkit-background-clip:text;background-clip:text;
   filter:url(#lgText) drop-shadow(0 .5vh 2.2vh rgba(0,0,0,.28))}
 
+/* Movable analog clock displayed above the foreground scene. */
+#towerClock{position:fixed;z-index:3;left:72vw;top:26vh;width:5vh;height:5vh;transform:translate(-50%,-50%);pointer-events:none;display:none;
+ filter:drop-shadow(0 .2vh .5vh rgba(0,0,0,.65))}
+#towerClock svg{width:100%;height:100%;display:block}
+#clockLayoutHint{display:none;position:fixed;z-index:10;left:50%;bottom:19vh;transform:translateX(-50%);padding:1.4vh 2.5vh;border-radius:2vh;
+ background:rgba(14,18,26,.92);font-size:2.1vh;white-space:nowrap;color:white}
+body.clock-layout #clockLayoutHint{display:block}
 /* ---------- tvOS-style home: rows of five across the full width ----------
    Row 0 sits on a full-width Liquid Glass shelf over the wallpaper; the next row peeks in at the bottom edge.
    Moving down slides the whole stack up (one transform), the wallpaper turns into blurred glass behind it. */
@@ -163,6 +170,7 @@ body.listening #voice .mic{animation:pulse 1.1s ease-in-out infinite}
 </svg>
 <img class="layer bg" id="bgA"><img class="layer bg off" id="bgB">
 <div id="clock"></div><canvas id="clockCv"></canvas>
+<div id="towerClock"></div><div id="clockLayoutHint"></div>
 <img class="layer fg" id="fgA"><img class="layer fg off" id="fgB">
 <div id="sky"></div><div id="fog"></div><div class="fall" id="fall1"></div><div class="fall" id="fall2"></div>
 <div id="date"></div>
@@ -173,6 +181,7 @@ body.listening #voice .mic{animation:pulse 1.1s ease-in-out infinite}
 <div id="panel"><div class="sheet"><h1 id="pTitle"></h1><div id="pSub"></div><div id="pRows"></div><div id="pFoot"></div></div></div>
 <div id="voice"><div class="mic"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V5a3.5 3.5 0 1 0-7 0v6a3.5 3.5 0 0 0 3.5 3.5zm6-3.5a6 6 0 0 1-12 0H4.2a7.8 7.8 0 0 0 6.9 7.7V21h1.8v-2.3a7.8 7.8 0 0 0 6.9-7.7z"/></svg></div><div class="txt dim"></div></div>
 <script src="lglass.js"></script>
+<script src="clock-layout.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -181,14 +190,14 @@ const q = new URLSearchParams(location.search);
 const DEMO = [['com.netflix.ninja', 'Netflix'], ['com.google.android.youtube.tv', 'YouTube'], ['com.amazon.amazonvideo.livingroom', 'Prime Video'],
   ['com.disney.disneyplus', 'Disney+'], ['com.wbd.stream', 'Max'], ['com.spotify.tv.android', 'Spotify'], ['com.apple.atve.androidtv.appletv', 'Apple TV'],
   ['tv.twitch.android.app', 'Twitch'], ['org.videolan.vlc', 'VLC'], ['com.android.chrome', 'Chrome']].map(([pkg, label]) => ({pkg, label, banner: `demo/${label.replace(/\W/g, '').toLowerCase()}.svg`}));
-const native = window.Android || {apps: () => JSON.stringify(DEMO), launch: p => console.log('launch', p), version: () => '1.0.0'};
+const native = window.Android || {apps: () => JSON.stringify(DEMO), launch: p => console.log('launch', p), version: () => '1.1.0'};
 const call = (f, ...a) => { try { return native[f] && native[f](...a); } catch (e) {} };
 const ready = () => { document.documentElement.classList.remove('boot'); call('ready'); };
 setTimeout(ready, 2500);                                             // safety: show whatever is there
 const loadJ = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 const saveJ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 const load = k => { const v = loadJ(k); return Array.isArray(v) ? v : null; };
-const VERSION = call('version') || '1.0.0', REPO = 'jakubvavradev/agentic-tv';
+const VERSION = call('version') || '1.1.0', REPO = 'jakubvavradev/agentic-tv';
 
 /* ---------- preferences: what the user picked, else derived from where the TV is (IP location) ----------
    Language, dock preset, °C/°F and 12/24 h follow the country until the user changes them in the preferences sheet. */
@@ -301,6 +310,7 @@ const now = () => { const d = new Date(); if (q.has('h')) { const h = +q.get('h'
 let lastMin = -1, tempText = '', clockText = '';
 function tick(force) {
   const d = now();
+  ClockLayout.tick(d);
   if (d.getMinutes() === lastMin && !force) return;
   lastMin = d.getMinutes();
   const h = get('clock') === '12' ? d.getHours() % 12 || 12 : d.getHours(), t = `${h}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -399,10 +409,14 @@ function setGL() {
 const vh = v => v * innerHeight / 100;
 function paintClock() {
   if (!window.LG || !document.documentElement.classList.contains('gl')) return;
+  if (!ClockLayout.hero.on) { $('clockCv').style.display = 'none'; return; }
+  $('clockCv').style.display = '';
+  const clockGeo = ClockLayout.hero;
   const night = slot.endsWith('night');   // at night the glass is frostier: stars behind the digits blur instead of sparkling through
   // after Apple's 9:41: narrow tall numerals (Roboto Flex, condensed), flat smoky glass face, refracting dark band + bright rim
-  LG.clock($('clockCv'), $('clock').textContent, {font: 'Clock', width: 'extra-condensed', weight: 640, size: vh(36), stretch: 1.06, tracking: 0.0,
-    top: vh(6), height: vh(46), baseline: vh(34.5), bevel: vh(0.75), shadow: 0.06,
+  LG.clock($('clockCv'), $('clock').textContent, {font: 'Clock', width: 'extra-condensed', weight: 640, size: vh(36 * clockGeo.size / 100), stretch: 1.06, tracking: 0.0,
+    x: innerWidth * clockGeo.x / 100, top: vh(clockGeo.y), height: vh(46 * clockGeo.size / 100),
+    baseline: vh(34.5 * clockGeo.size / 100), bevel: vh(0.75 * clockGeo.size / 100), shadow: 0.06,
     optics: {u_refract: 0.55, u_chroma: 0.02, u_edgeHL: 0, u_spec: 0, u_fresnel: 0, u_blurMix: night ? 0.9 : 0.3, u_bright: night ? 0.85 : 0.42, u_sat: 0.1, u_smoke: night ? 0.6 : 0.52, u_edgeDark: 0}});
 }
 function paintPanels() {
@@ -497,6 +511,18 @@ function press() {                      // short OK
   else if (current()) native.launch(current().pkg);
 }
 
+function beginClockLayoutEdit() {
+  mode = 'clockLayout';
+  document.body.classList.remove('panel');
+  document.body.classList.add('clock-layout');
+  ClockLayout.begin();
+}
+function finishClockLayoutEdit() {
+  ClockLayout.finish();
+  document.body.classList.remove('clock-layout');
+  mode = 'panel';
+  renderPanel();
+}
 /* ---------- preferences sheet ---------- */
 const PROWS = [
   {k: 'lang', label: 'lang', opts: LANGS, show: langName},
@@ -504,6 +530,7 @@ const PROWS = [
   {k: 'temp', label: 'temp', opts: ['c', 'f'], show: v => v === 'c' ? '°C' : '°F'},
   {k: 'clock', label: 'clock', opts: ['24', '12'], show: v => v + ' h'},
   {k: 'fx', label: 'fx', opts: ['full', 'eco'], show: v => T(v === 'full' ? 'full' : 'eco')},
+  {k: 'clockLayout', label: 'clock', show: () => 'Position / Size'},
   {k: 'update', label: 'update', show: () => ({idle: T('check'), checking: T('checking'), latest: T('latest'), avail: `${T('install')} ${upd.v}`,
     downloading: T('downloading'), fail: T('fail')})[upd.state]},
   {k: 'done', btn: true},
@@ -545,6 +572,7 @@ function cycle(step) {
 }
 function panelOk() {
   const p = PROWS[pi];
+  if (p.k === 'clockLayout') { beginClockLayoutEdit(); return; }
   if (p.k === 'done') closePanel();
   else if (p.k === 'update') upd.state === 'avail' ? installUpdate() : checkUpdate(true);
   else cycle(1);
@@ -679,6 +707,12 @@ if (q.has('say')) setTimeout(() => onVoice('final', q.get('say')), 1500);
 let holdT = 0, held = false, okDown = false;
 addEventListener('keydown', e => {
   const k = e.key;
+  if (mode === 'clockLayout') {
+    e.preventDefault();
+    if (k === 'Escape' || k === 'Backspace') finishClockLayoutEdit();
+    else if (!e.repeat || k !== 'Enter') ClockLayout.key(k);
+    return;
+  }
   if (k === 'Enter') {
     e.preventDefault();
     if (e.repeat || okDown) {                                   // the remote auto-repeats a held key: that is a hold too
@@ -726,12 +760,12 @@ addEventListener('keyup', e => {
 });
 // called by the native side
 const toHome = col => { if (mode === 'edit') saveOrder(); mode = 'home'; document.body.classList.remove('edit'); moveFocus(0, col); };
-window.onBack = () => mode === 'panel' ? closePanel() : toHome(c);
+window.onBack = () => mode === 'clockLayout' ? finishClockLayoutEdit() : mode === 'panel' ? closePanel() : toHome(c);
 window.onHome = () => { if (mode === 'panel') closePanel(); toHome(0); };
 window.onResumeHome = () => { okDown = false; clearTimeout(holdT); tick(true); loadApps(); };
 
 addEventListener('resize', () => { alignGlass(); paintClock(); paintPanels(); });
-applyPrefs(); tick(); loadApps(); showWeather();
+ClockLayout.init(paintClock); applyPrefs(); tick(); loadApps(); showWeather();
 setInterval(tick, 5000);
 locate(); setInterval(getWeather, 10 * 60 * 1000); setInterval(locate, 6 * 3600 * 1000);
 if (Date.now() - (loadJ('updAt') || 0) > 864e5) setTimeout(checkUpdate, 20000);   // quietly, once a day: a red dot on Preferences
