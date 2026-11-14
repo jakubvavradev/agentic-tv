@@ -28,7 +28,7 @@ It is the first piece of a bigger idea: a TV you can simply ask for things.
 |---|---|
 | **The landscape is the weather** | Rain, snow, fog and cloud appear *in* the scene, from [Open-Meteo](https://open-meteo.com) for your location. Sunrise, day, golden hour and night follow the real sun, for every month of the year. |
 | **Works anywhere, set up in one minute** | On first start it finds your country (from your IP, no permission needed) and suggests the language, °C/°F, 12/24 h and the apps for the dock. A sheet comes up once, you press *Done*. |
-| **Pick your mountain** | Matterhorn, Sněžka or Eiger, each rendered from real terrain and open aerial imagery. Preferences show a preview card with the name and country. |
+| **Pick your mountain** | Matterhorn, Sněžka, Eiger, Großglockner or Fuji, each rendered from real terrain and open aerial imagery. Preferences show a preview card with the name and country. |
 | **Your clock, your place** | Move and resize the clock with the remote; Back asks *Save* or *Cancel*. |
 | **Preferences, top left** | Language, dock apps, temperature, clock, effects (*Light* for slower boxes), mountain, clock position and *Check for updates* with a progress bar. System settings stay top right. |
 | **Updates from GitHub** | Once a day it checks this repo's releases. A red dot on Preferences means a new version; one click downloads it and Android asks you to confirm. |
@@ -94,7 +94,7 @@ Arrow keys and Enter act as the remote.
 Made by **Jakub Vávra** ([@jakubvavradev](https://github.com/jakubvavradev)).
 
 Terrain and imagery © [swisstopo](https://www.swisstopo.admin.ch) (swissALTI3D, SWISSIMAGE) · [ČÚZK](https://cuzk.gov.cz) orthophoto (CC BY 4.0) ·
-[IGN](https://geoservices.ign.fr) orthophoto (Etalab 2.0) · [basemap.at](https://basemap.at) orthophoto (CC BY 4.0) · [GSI Japan](https://maps.gsi.go.jp) photo ·
+[basemap.at](https://basemap.at) orthophoto (CC BY 4.0) · [GSI Japan](https://maps.gsi.go.jp) photo ·
 AWS Terrain Tiles · Sentinel-2 cloudless 2016 © EOX (CC BY 4.0). Weather by [Open-Meteo](https://open-meteo.com) (CC BY 4.0).
 Glass optics adapted from [ybouane/liquidglass](https://github.com/ybouane/liquidglass) (MIT) and
 [rdev/liquid-glass-react](https://github.com/rdev/liquid-glass-react) (MIT).

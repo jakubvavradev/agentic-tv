@@ -256,7 +256,7 @@ setTimeout(ready, 2500);                                             // safety: 
 const loadJ = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 const saveJ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 const load = k => { const v = loadJ(k); return Array.isArray(v) ? v : null; };
-const VERSION = call('version') || '1.2.0', REPO = 'jakubvavradev/agentic-tv';
+const VERSION = call('version') || '1.2.1', REPO = 'jakubvavradev/agentic-tv';
 
 /* ---------- preferences: what the user picked, else derived from where the TV is (IP location) ----------
    Language, dock preset, °C/°F and 12/24 h follow the country until the user changes them in the preferences sheet. */
@@ -273,6 +273,8 @@ const PEAKS = [
   {id: 'matterhorn', name: 'Matterhorn', cc: ['CH', 'IT'], months: ALL12, credit: `${SW} · ${AWS} · ${S2}`},
   {id: 'snezka', name: 'Sněžka', cc: ['CZ', 'PL'], months: SEASON4, credit: `ČÚZK (CC BY 4.0) · ${AWS} · ${S2}`},
   {id: 'eiger', name: 'Eiger', cc: ['CH'], months: SEASON4, credit: `${SW} · ${AWS} · ${S2}`},
+  {id: 'grossglockner', name: 'Großglockner', cc: ['AT'], months: SEASON4, credit: `basemap.at (CC BY 4.0) · ${AWS} · ${S2}`},
+  {id: 'fuji', name: {cs: 'Fudži', sk: 'Fudži', pl: 'Fudżi'}, en: 'Fuji', cc: ['JP'], months: SEASON4, credit: `GSI Japan · ${AWS} · ${S2}`},
 ];
 const peakOf = id => PEAKS.find(p => p.id === id) || PEAKS[0];
 const peakName = p => typeof p.name === 'string' ? p.name : p.name[get('lang')] || p.en;
