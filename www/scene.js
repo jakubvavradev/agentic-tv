@@ -48,12 +48,13 @@ float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
 float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++){ v += a*vnoise(p); p *= 2.03; a *= 0.5; } return v; }`;
 
 export async function createScene(bgCanvas, fgCanvas) {
-  const meta = await (await fetch('terrain/meta.json')).json();
+  const T = new URLSearchParams(location.search).get('t'), DIR = T ? `terrain/${T}` : 'terrain';   // ?t=<peak> picks another terrain
+  const meta = await (await fetch(`${DIR}/meta.json`)).json(), VIEW = Object.assign({camY: 2750, drop: 980, fov: 25, snow: 0}, meta.view);
   // levels of detail: "peak" (swissALTI3D 2 m + aerial photo), "near" (peak surroundings + foreground), "far" (distant ranges)
   async function level(name, skirt = 0) {
     const L = meta[name];
-    const H16 = new Uint16Array(await (await fetch(`terrain/${name}.bin`)).arrayBuffer());
-    const tex = await new THREE.TextureLoader().loadAsync(`terrain/${name}.jpg`);
+    const H16 = new Uint16Array(await (await fetch(`${DIR}/${name}.bin`)).arrayBuffer());
+    const tex = await new THREE.TextureLoader().loadAsync(`${DIR}/${name}.jpg`);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 8;
     const G = L.grid, geo = new THREE.PlaneGeometry(L.size, L.size, G - 1, G - 1);
@@ -88,9 +89,9 @@ export async function createScene(bgCanvas, fgCanvas) {
   const peakY = (peak || near).top;
   const camAz = meta.cam[0] * rad, camDist = meta.cam[1];
   const camBase = new THREE.Vector3(Math.sin(camAz) * camDist, 0, -Math.cos(camAz) * camDist);
-  camBase.y = Math.max(heightAtWorld(camBase.x, camBase.z) + 80, 2750);
-  const target = new THREE.Vector3(0, peakY - 980, 0);
-  const camera = new THREE.PerspectiveCamera(25, innerWidth / innerHeight, 20, 400000);
+  camBase.y = Math.max(heightAtWorld(camBase.x, camBase.z) + 80, VIEW.camY);
+  const target = new THREE.Vector3(0, peakY - VIEW.drop, 0);
+  const camera = new THREE.PerspectiveCamera(VIEW.fov, innerWidth / innerHeight, 20, 400000);
 
   // ---- split plane: everything farther than the peak (+ margin) is "background", nearer is "foreground"
   const fwd = target.clone().sub(camBase).setY(0).normalize();
@@ -337,7 +338,7 @@ export async function createScene(bgCanvas, fgCanvas) {
     cloudU.uAmb.value.setHSL(0.6, 0.3 - overcast * 0.2, 0.04 + day * (0.55 - overcast * 0.12));
 
     const se = season(now);
-    uniforms.uSnowLine.value = se.snowLine - (fx.cold ? 300 : 0) - fx.snow * 600;
+    uniforms.uSnowLine.value = se.snowLine + VIEW.snow - (fx.cold ? 300 : 0) - fx.snow * 600;
     uniforms.uSnowAmt.value = fx.snow * 0.6;
     uniforms.uTint.value.set(...se.tint);
     uniforms.uWet.value = fx.rain;

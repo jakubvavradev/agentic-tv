@@ -1,7 +1,8 @@
-tools/.cache/
 android/build/
+dist/
 .impeccable/
-www/.impeccable/
 *.jks
 keystore.properties
-dist/
+tools/.cache/
+www/.impeccable/
+www/terrain/*/

@@ -46,12 +46,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:transparent;color:#f
   background-size:100% 100%,108vw 108vh;background-repeat:no-repeat;-webkit-background-clip:text;background-clip:text;
   filter:url(#lgText) drop-shadow(0 .5vh 2.2vh rgba(0,0,0,.28))}
 
-/* Movable analog clock displayed above the foreground scene. */
-#towerClock{position:fixed;z-index:3;left:50vw;top:37vh;width:25vh;height:50vh;transform:translate(-50%,-50%);pointer-events:none;display:none;
- filter:drop-shadow(0 1.2vh 2.4vh rgba(0,0,0,.45))}
-#towerClock svg{width:100%;height:100%;display:block}
 /* clock editor: a glowing frame glides after the clock, a glass capsule names the clock, the step and the keys */
-body.clock-layout #towerClock{transition:left .35s var(--spring),top .35s var(--spring),width .35s var(--spring),height .35s var(--spring)}
 #clockFrame{position:fixed;z-index:9;pointer-events:none;border-radius:2.4vh;opacity:0;transform:scale(1.08);
  box-shadow:0 0 0 .35vh rgba(255,255,255,.95),0 0 3vh rgba(140,180,255,.55),inset 0 0 2vh rgba(140,180,255,.25);
  transition:left .35s var(--spring),top .35s var(--spring),width .35s var(--spring),height .35s var(--spring),opacity .3s var(--ease),transform .45s var(--spring)}
@@ -85,6 +80,28 @@ body.clock-layout #clockLayoutHint{opacity:1;transform:translate(-50%,0)}
 .seg.size::before{transform:translateX(100%)}
 .seg.move #clkMove,.seg.size #clkSize{color:#14161b}
 #clkKeys{margin-top:1.4vh;font-size:2vh;font-weight:500;opacity:.7;white-space:nowrap}
+/* mountain picker: preview cards with name and country */
+#peaks{position:fixed;inset:0;z-index:9;display:grid;place-items:center;opacity:0;pointer-events:none;transition:opacity .35s var(--ease)}
+body.peaks #peaks{opacity:1;pointer-events:auto}body.peaks #veil{opacity:1}
+#peaks .sheet{width:min(86vw,150vh);transform:scale(.97);transition:transform .5s var(--spring)}body.peaks #peaks .sheet{transform:none}
+#pkCredit{margin-top:2.2vh;text-align:center;font-size:1.7vh;opacity:.5;min-height:2vh}
+#pkGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:2.4vh;margin-top:2.6vh}
+.pk{border-radius:2.2vh;padding:1vh;transition:background .25s,transform .35s var(--spring)}
+.pk img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:1.6vh;box-shadow:0 1vh 2.4vh rgba(0,0,0,.35)}
+.pk b{display:block;margin:1.2vh .6vh 0;font-size:2.4vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk small{display:block;margin:.3vh .6vh .4vh;font-size:1.9vh;opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk.focus{background:rgba(255,255,255,.94);color:#14161b;transform:scale(1.05)}
+.pk.on b::after{content:" ✓";color:#30d158}
+/* Back in the editor: Save / Cancel */
+#clkAsk{position:fixed;z-index:11;left:50%;top:50%;padding:3.6vh 4vh 3vh;border-radius:3.4vh;text-align:center;color:#fff;
+ background:rgba(18,22,30,.72);box-shadow:inset 0 0 0 .12vh rgba(255,255,255,.24),0 3vh 8vh rgba(0,0,0,.5);
+ opacity:0;transform:translate(-50%,-46%) scale(.94);pointer-events:none;transition:opacity .25s var(--ease),transform .45s var(--spring)}
+body.clock-ask #clkAsk{opacity:1;transform:translate(-50%,-50%)}
+body.clock-ask #clockLayoutHint{opacity:0}
+#clkAsk .q{font-size:3.2vh;font-weight:700;margin-bottom:2.8vh;white-space:nowrap}
+#clkAsk .btns{display:flex;gap:2vh;justify-content:center}
+#clkAsk .btns span{min-width:18vh;padding:1.6vh 3vh;border-radius:99vh;font-size:2.6vh;font-weight:600;background:rgba(255,255,255,.14);transition:background .2s,color .2s,transform .3s var(--spring)}
+#clkAsk .btns span.focus{background:#fff;color:#14161b;transform:scale(1.06)}
 body.clock-layout #rows,body.clock-layout .topbtn,body.clock-layout #date{opacity:.15;transition:opacity .4s var(--ease)}
 /* update download progress in the preferences row */
 .pbar{display:inline-block;width:16vh;height:1vh;border-radius:99vh;background:rgba(127,127,127,.3);overflow:hidden;position:relative}
@@ -208,7 +225,8 @@ body.listening #voice .mic{animation:pulse 1.1s ease-in-out infinite}
 </svg>
 <img class="layer bg" id="bgA"><img class="layer bg off" id="bgB">
 <div id="clock"></div><canvas id="clockCv"></canvas>
-<div id="towerClock"></div>
+<div id="peaks"><div class="sheet"><h1 id="pkTitle"></h1><div id="pkGrid"></div><div id="pkCredit"></div></div></div>
+<div id="clkAsk"><div class="q" id="clkQ"></div><div class="btns"><span id="clkSave"></span><span id="clkCancel"></span></div></div>
 <div id="clockFrame"><i class="cu">▴</i><i class="cd">▾</i><i class="cl">◂</i><i class="cr">▸</i><b></b><b></b><b></b><b></b></div>
 <div id="clockLayoutHint"><div class="top"><span id="clkName"></span><span id="clkStep"></span>
 <span class="seg" id="clkSeg"><span id="clkMove"></span><span id="clkSize"></span></span><span id="clkPct"></span></div><div id="clkKeys"></div></div>
@@ -238,7 +256,7 @@ setTimeout(ready, 2500);                                             // safety: 
 const loadJ = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 const saveJ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 const load = k => { const v = loadJ(k); return Array.isArray(v) ? v : null; };
-const VERSION = call('version') || '1.1.3', REPO = 'jakubvavradev/agentic-tv';
+const VERSION = call('version') || '1.2.0', REPO = 'jakubvavradev/agentic-tv';
 
 /* ---------- preferences: what the user picked, else derived from where the TV is (IP location) ----------
    Language, dock preset, °C/°F and 12/24 h follow the country until the user changes them in the preferences sheet. */
@@ -248,7 +266,19 @@ const LANGS = ['cs', 'sk', 'en', 'de', 'pl', 'fr', 'es', 'it'];
 const LANG_OF = {US: 'en', GB: 'en', IE: 'en', CA: 'en', AU: 'en', NZ: 'en', CZ: 'cs', SK: 'sk', DE: 'de', AT: 'de', CH: 'de', LI: 'de', PL: 'pl', FR: 'fr', BE: 'fr', LU: 'fr', MC: 'fr', IT: 'it', SM: 'it',
   ES: 'es', MX: 'es', AR: 'es', CO: 'es', CL: 'es', PE: 'es', VE: 'es', EC: 'es', GT: 'es', CU: 'es', BO: 'es', DO: 'es', HN: 'es', PY: 'es', SV: 'es', NI: 'es', CR: 'es', PA: 'es', UY: 'es'};
 const H12 = new Set(['US', 'CA', 'AU', 'NZ', 'IN', 'PH', 'PK', 'BD', 'EG', 'SA']), FAHR = new Set(['US', 'LR', 'MM', 'BS', 'BZ', 'KY', 'PW']);
+/* ---------- mountains: pre-rendered 3D scenes (tools/render-months.js); months = rendered months, others use the nearest ---------- */
+const ALL12 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], SEASON4 = [1, 4, 7, 10];
+const SW = 'swisstopo', S2 = 'Sentinel-2 © EOX (CC BY 4.0)', AWS = 'AWS Terrain Tiles';
+const PEAKS = [
+  {id: 'matterhorn', name: 'Matterhorn', cc: ['CH', 'IT'], months: ALL12, credit: `${SW} · ${AWS} · ${S2}`},
+  {id: 'snezka', name: 'Sněžka', cc: ['CZ', 'PL'], months: SEASON4, credit: `ČÚZK (CC BY 4.0) · ${AWS} · ${S2}`},
+  {id: 'eiger', name: 'Eiger', cc: ['CH'], months: SEASON4, credit: `${SW} · ${AWS} · ${S2}`},
+];
+const peakOf = id => PEAKS.find(p => p.id === id) || PEAKS[0];
+const peakName = p => typeof p.name === 'string' ? p.name : p.name[get('lang')] || p.en;
+const nearestMonth = (p, m) => p.months.reduce((a, b) => Math.min(Math.abs(b - m), 12 - Math.abs(b - m)) < Math.min(Math.abs(a - m), 12 - Math.abs(a - m)) ? b : a);
 const AUTO = {
+  peak: () => 'matterhorn',
   lang: () => (LOC && LANG_OF[LOC.cc]) || LANGS.find(l => (navigator.language || '').toLowerCase().startsWith(l)) || 'en',
   region: () => (LOC ? LOC.cc === 'CZ' : get('lang') === 'cs') ? 'cz' : 'intl',
   temp: () => LOC && FAHR.has(LOC.cc) ? 'f' : 'c',
@@ -283,9 +313,6 @@ const STR = {
   install: ['Nainstalovat', 'Nainštalovať', 'Install', 'Installieren', 'Zainstaluj', 'Installer', 'Instalar', 'Installa'],
   downloading: ['Stahuji…', 'Sťahujem…', 'Downloading…', 'Wird geladen…', 'Pobieranie…', 'Téléchargement…', 'Descargando…', 'Download…'],
   fail: ['Nepodařilo se', 'Nepodarilo sa', 'Failed', 'Fehlgeschlagen', 'Nie udało się', 'Échec', 'Error', 'Non riuscito'],
-  clockStyle: ['Styl hodin', 'Štýl hodín', 'Clock style', 'Uhrenstil', 'Styl zegara', 'Style d’horloge', 'Estilo de reloj', 'Stile orologio'],
-  digital: ['Digitální', 'Digitálne', 'Digital', 'Digital', 'Cyfrowy', 'Numérique', 'Digital', 'Digitale'],
-  tower: ['Katedrála', 'Katedrála', 'Cathedral', 'Kathedrale', 'Katedra', 'Cathédrale', 'Catedral', 'Cattedrale'],
   layout: ['Umístění hodin', 'Umiestnenie hodín', 'Clock position', 'Uhrposition', 'Położenie zegara', 'Position de l’horloge', 'Posición del reloj', 'Posizione orologio'],
   edit: ['Upravit', 'Upraviť', 'Adjust', 'Anpassen', 'Dostosuj', 'Ajuster', 'Ajustar', 'Regola'],
   resetClock: ['Obnovit výchozí hodiny', 'Obnoviť predvolené hodiny', 'Reset clock to default', 'Uhr zurücksetzen', 'Przywróć domyślny zegar', 'Réinitialiser l’horloge', 'Restablecer reloj', 'Ripristina orologio'],
@@ -294,7 +321,12 @@ const STR = {
   keysMove: ['Šipky posouvají', 'Šípky posúvajú', 'Arrows move', 'Pfeile verschieben', 'Strzałki przesuwają', 'Flèches : déplacer', 'Flechas: mover', 'Frecce: sposta'],
   keysSize: ['← → menší / větší', '← → menšie / väčšie', '← → smaller / bigger', '← → kleiner / größer', '← → mniejszy / większy', '← → plus petit / plus grand', '← → más pequeño / más grande', '← → più piccolo / più grande'],
   okNext: ['OK další krok', 'OK ďalší krok', 'OK next step', 'OK nächster Schritt', 'OK następny krok', 'OK étape suivante', 'OK siguiente paso', 'OK passo successivo'],
-  backSave: ['Zpět uloží', 'Späť uloží', 'Back saves', 'Zurück speichert', 'Wstecz zapisuje', 'Retour enregistre', 'Atrás guarda', 'Indietro salva'],
+  peak: ['Hora', 'Hora', 'Mountain', 'Berg', 'Góra', 'Montagne', 'Montaña', 'Montagna'],
+  peakPick: ['Vyberte horu', 'Vyberte horu', 'Choose a mountain', 'Berg auswählen', 'Wybierz górę', 'Choisissez une montagne', 'Elige una montaña', 'Scegli una montagna'],
+  backDone: ['Zpět hotovo', 'Späť hotovo', 'Back when done', 'Zurück: fertig', 'Wstecz: gotowe', 'Retour : terminé', 'Atrás: listo', 'Indietro: fatto'],
+  askSave: ['Uložit změny hodin?', 'Uložiť zmeny hodín?', 'Save clock changes?', 'Änderungen an der Uhr speichern?', 'Zapisać zmiany zegara?', 'Enregistrer les changements ?', '¿Guardar los cambios del reloj?', 'Salvare le modifiche all’orologio?'],
+  save: ['Uložit', 'Uložiť', 'Save', 'Speichern', 'Zapisz', 'Enregistrer', 'Guardar', 'Salva'],
+  cancel: ['Zrušit', 'Zrušiť', 'Cancel', 'Abbrechen', 'Anuluj', 'Annuler', 'Cancelar', 'Annulla'],
   done: ['Hotovo', 'Hotovo', 'Done', 'Fertig', 'Gotowe', 'Terminé', 'Listo', 'Fatto'],
   listen: ['Poslouchám…', 'Počúvam…', 'Listening…', 'Ich höre…', 'Słucham…', 'J’écoute…', 'Escuchando…', 'Ascolto…'],
   nope: ['Nerozuměl jsem', 'Nerozumel som', 'Didn’t catch that', 'Nicht verstanden', 'Nie zrozumiałem', 'Pas compris', 'No te he entendido', 'Non ho capito'],
@@ -341,7 +373,7 @@ function setSlot(s, instant) {
     const r = document.documentElement.style;
     r.setProperty('--blur', `url(wall/${s}-blur.webp)`);
     r.setProperty('--clear', `url(wall/${s}-clear.webp)`);
-    r.setProperty('--dim', DIM[s.slice(3)]);
+    r.setProperty('--dim', DIM[s.split('-').pop()]);
     r.setProperty('--wall', `url(wall/${s}-bg.webp)`);
     for (const id of ['bg', 'fg']) {
       const inEl = $(id + back), outEl = $(id + front);
@@ -363,14 +395,14 @@ const now = () => { const d = new Date(); if (q.has('h')) { const h = +q.get('h'
 let lastMin = -1, tempText = '', clockText = '';
 function tick(force) {
   const d = now();
-  ClockLayout.tick(d);
   if (d.getMinutes() === lastMin && !force) return;
   lastMin = d.getMinutes();
   const h = get('clock') === '12' ? d.getHours() % 12 || 12 : d.getHours(), t = `${h}:${String(d.getMinutes()).padStart(2, '0')}`;
   $('clock').textContent = t;
   if (t !== clockText) { clockText = t; paintClock(); }
   $('date').textContent = cap1(new Intl.DateTimeFormat(get('lang'), {weekday: 'long', day: 'numeric', month: 'long'}).format(d)) + (tempText ? '   ·   ' + tempText : '');
-  setSlot(String(d.getMonth() + 1).padStart(2, '0') + '-' + slotFor(d), !slot);
+  const pk = peakOf(get('peak'));
+  setSlot(`${pk.id}/${String(nearestMonth(pk, d.getMonth() + 1)).padStart(2, '0')}-${slotFor(d)}`, !slot);
 }
 
 /* ---------- where the TV is: IP geolocation (no permission, no key), cached for a day ---------- */
@@ -462,8 +494,6 @@ function setGL() {
 const vh = v => v * innerHeight / 100;
 function paintClock() {
   if (!window.LG || !document.documentElement.classList.contains('gl')) return;
-  if (!ClockLayout.hero.on) { $('clockCv').style.display = 'none'; return; }
-  $('clockCv').style.display = '';
   const clockGeo = ClockLayout.hero;
   const night = slot.endsWith('night');   // at night the glass is frostier: stars behind the digits blur instead of sparkling through
   // after Apple's 9:41: narrow tall numerals (Roboto Flex, condensed), flat smoky glass face, refracting dark band + bright rim
@@ -560,6 +590,7 @@ const current = () => ROWS[r] && ROWS[r][c];
 function press() {                      // short OK
   if (mode === 'edit') { saveOrder(); setMode('home'); }
   else if (mode === 'panel') panelOk();
+  else if (mode === 'peaks') pickPeak();
   else if (mode === 'top') { if (topI === 0) openPanel(); else { setMode('home'); native.launch(SETTINGS); } }
   else if (current()) native.launch(current().pkg);
 }
@@ -570,11 +601,38 @@ function beginClockLayoutEdit() {
   document.body.classList.add('clock-layout');
   ClockLayout.begin();
 }
-function finishClockLayoutEdit() {
-  ClockLayout.finish();
-  document.body.classList.remove('clock-layout');
-  mode = 'panel';
-  renderPanel();
+/* ---------- mountain picker ---------- */
+let pkI = 0;
+function openPeaks() {
+  mode = 'peaks'; pkI = Math.max(0, PEAKS.findIndex(p => p.id === get('peak')));
+  $('pkTitle').textContent = T('peakPick');
+  $('pkGrid').innerHTML = PEAKS.map(p => `<div class="pk"><img src="wall/${p.id}/thumb.webp" alt=""><b></b><small></small></div>`).join('');
+  [...$('pkGrid').children].forEach((el, i) => {
+    el.querySelector('b').textContent = peakName(PEAKS[i]);
+    el.querySelector('small').textContent = PEAKS[i].cc.map(regionName).join(' · ');
+  });
+  paintPeaks(); document.body.classList.remove('panel'); document.body.classList.add('peaks');
+}
+function paintPeaks() {
+  [...$('pkGrid').children].forEach((el, i) => { el.classList.toggle('focus', i === pkI); el.classList.toggle('on', PEAKS[i].id === get('peak')); });
+  $('pkCredit').textContent = PEAKS[pkI].credit;
+}
+function closePeaks() { mode = 'panel'; document.body.classList.remove('peaks'); document.body.classList.add('panel'); renderPanel(); }
+function pickPeak() { PREF.peak = PEAKS[pkI].id; saveJ('prefs', PREF); lastMin = -1; tick(true); paintPeaks(); setTimeout(closePeaks, 350); }
+// Back in the editor asks Save / Cancel; either one lands on the home row, first app
+let askI = 0;
+function askClock() {
+  mode = 'clockAsk'; askI = 0;
+  $('clkQ').textContent = T('askSave'); $('clkSave').textContent = T('save'); $('clkCancel').textContent = T('cancel');
+  paintAsk(); document.body.classList.add('clock-ask');
+}
+const paintAsk = () => { $('clkSave').classList.toggle('focus', askI === 0); $('clkCancel').classList.toggle('focus', askI === 1); };
+function backToEditing() { mode = 'clockLayout'; document.body.classList.remove('clock-ask'); }
+function exitClock(save) {
+  save ? ClockLayout.save() : ClockLayout.cancel();
+  document.body.classList.remove('clock-layout', 'clock-ask');
+  if (firstRun) { firstRun = false; PREF.setup = true; saveJ('prefs', PREF); }
+  mode = 'home'; topI = 0; moveFocus(0, 0);
 }
 /* ---------- preferences sheet ---------- */
 const PROWS = [
@@ -583,7 +641,7 @@ const PROWS = [
   {k: 'temp', label: 'temp', opts: ['c', 'f'], show: v => v === 'c' ? '°C' : '°F'},
   {k: 'clock', label: 'clock', opts: ['24', '12'], show: v => v + ' h'},
   {k: 'fx', label: 'fx', opts: ['full', 'eco'], show: v => T(v === 'full' ? 'full' : 'eco')},
-  {k: 'clockStyle', label: 'clockStyle', opts: ['digital', 'tower'], show: T, get: () => ClockLayout.style(), set: v => ClockLayout.setStyle(v)},
+  {k: 'peak', label: 'peak', opts: PEAKS.map(p => p.id), show: id => peakName(peakOf(id))},
   {k: 'clockLayout', label: 'layout', show: () => T('edit') + ' ›'},
   {k: 'clockReset', label: 'resetClock', show: () => resetDone ? '✓' : ''},
   {k: 'update', label: 'update', show: () => ({idle: T('check'), checking: T('checking'), latest: T('latest'), avail: `${T('install')} ${upd.v}`,
@@ -626,12 +684,14 @@ function cycle(step) {
   const i = (p.opts.indexOf(p.get ? p.get() : get(p.k)) + step + p.opts.length) % p.opts.length;
   if (p.set) { p.set(p.opts[i]); return renderPanel(); }
   PREF[p.k] = p.opts[i]; saveJ('prefs', PREF);
+  if (p.k === 'peak') { lastMin = -1; tick(true); }
   if (p.k === 'region') { order = PRESETS[PREF.region].concat((order || []).filter(x => !PRESETS[PREF.region].includes(x))); saveOrder(); appsJson = ''; loadApps(); }
   applyPrefs(); renderPanel();
 }
 function panelOk() {
   const p = PROWS[pi];
   if (p.k === 'clockLayout') { beginClockLayoutEdit(); return; }
+  if (p.k === 'peak') { openPeaks(); return; }
   if (p.k === 'clockReset') { ClockLayout.reset(); resetDone = true; renderPanel(); setTimeout(() => { resetDone = false; renderPanel(); }, 2500); return; }
   if (p.k === 'done') closePanel();
   else if (p.k === 'update') upd.state === 'avail' ? installUpdate() : checkUpdate(true);
@@ -775,8 +835,15 @@ addEventListener('keydown', e => {
   const k = e.key;
   if (mode === 'clockLayout') {
     e.preventDefault();
-    if (k === 'Escape' || k === 'Backspace') finishClockLayoutEdit();
+    if (k === 'Escape' || k === 'Backspace') askClock();
     else if (!e.repeat || k !== 'Enter') ClockLayout.key(k, e.repeat);
+    return;
+  }
+  if (mode === 'clockAsk') {
+    e.preventDefault();
+    if (k === 'ArrowLeft' || k === 'ArrowRight') { askI = 1 - askI; paintAsk(); }
+    else if (k === 'Enter' && !e.repeat) exitClock(askI === 0);
+    else if (k === 'Escape' || k === 'Backspace') backToEditing();
     return;
   }
   if (k === 'Enter') {
@@ -796,6 +863,11 @@ addEventListener('keydown', e => {
     else if (k === 'ArrowUp') moveApp(-PER);
     else if (k === 'Escape') { saveOrder(); setMode('home'); }
     else return;
+  } else if (mode === 'peaks') {
+    const n = PEAKS.length, mv = {ArrowLeft: -1, ArrowRight: 1, ArrowUp: -4, ArrowDown: 4}[k];
+    if (mv && pkI + mv >= 0 && pkI + mv < n) { pkI += mv; paintPeaks(); }
+    else if (k === 'Escape') closePeaks();
+    else if (!mv) return;
   } else if (mode === 'panel') {
     if (k === 'ArrowDown') { pi = Math.min(PROWS.length - 1, pi + 1); renderPanel(); }
     else if (k === 'ArrowUp') { pi = Math.max(0, pi - 1); renderPanel(); }
@@ -826,8 +898,8 @@ addEventListener('keyup', e => {
 });
 // called by the native side
 const toHome = col => { if (mode === 'edit') saveOrder(); mode = 'home'; document.body.classList.remove('edit'); moveFocus(0, col); };
-window.onBack = () => mode === 'clockLayout' ? finishClockLayoutEdit() : mode === 'panel' ? closePanel() : toHome(c);
-window.onHome = () => { if (mode === 'panel') closePanel(); toHome(0); };
+window.onBack = () => mode === 'peaks' ? closePeaks() : mode === 'clockLayout' ? askClock() : mode === 'clockAsk' ? backToEditing() : mode === 'panel' ? closePanel() : toHome(c);
+window.onHome = () => { if (mode === 'clockLayout' || mode === 'clockAsk') return exitClock(true); if (mode === 'peaks') document.body.classList.remove('peaks'); if (mode === 'panel') closePanel(); toHome(0); };
 window.onResumeHome = () => { okDown = false; clearTimeout(holdT); tick(true); loadApps(); };
 
 addEventListener('resize', () => { alignGlass(); paintClock(); paintPanels(); });

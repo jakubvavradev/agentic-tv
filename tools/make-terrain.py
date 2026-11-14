@@ -6,7 +6,7 @@
 Sources: swisstopo (swissALTI3D, SWISSIMAGE), AWS Terrain Tiles (terrarium), Sentinel-2 cloudless 2016 by EOX (CC BY 4.0).
   python3 tools/make-terrain.py [lat lon name cam_bearing_deg cam_dist_m]     default: Matterhorn from Zermatt side
 Writes www/terrain/{near,far}.{bin,jpg} + meta.json."""
-import io, json, math, sys, urllib.request
+import io, json, math, os, sys, urllib.request
 from pathlib import Path
 from PIL import Image
 
@@ -15,7 +15,10 @@ LAT, LON = (float(a[0]), float(a[1])) if len(a) > 1 else (45.9763, 7.6586)
 NAME = a[2] if len(a) > 2 else "Matterhorn"
 CAM_BEARING = float(a[3]) if len(a) > 3 else 62.0       # where the camera stands, seen from the peak
 CAM_DIST = float(a[4]) if len(a) > 4 else 8600.0
-OUT = Path(__file__).resolve().parent.parent / "www/terrain"
+OUT = Path(os.environ.get("TERRAIN_OUT") or Path(__file__).resolve().parent.parent / "www/terrain")
+SWISS = os.environ.get("SWISS", "1") == "1"          # swisstopo detail only inside Switzerland
+IMG = os.environ.get("IMG")                             # national open orthophoto {z}/{x}/{y} template outside CH (EOX fallback)
+VIEW = json.loads(os.environ.get("VIEW", "{}"))         # camera/snow overrides for scene.js: camY, drop, fov, snow
 CIRC = 40075016.7
 
 
@@ -68,12 +71,20 @@ def mosaic(url, z, x0, y0, n, nx=None, fallback=None):
     return img
 
 
+def fit16(hs):
+    """Heights are stored as uint16 decimetres: drop nodata holes, lift the deepest valleys so the range fits 6553 m."""
+    ok = [h for h in hs if h > -500]
+    top = max(ok); lo = max(min(ok), top - 6553)
+    return [min(max(h, lo), top) for h in hs], lo
+
+
 def level(name, z_dem, center_lat, center_lon, grid, n=4, swiss=False):
     fx, fy = tile_xy(center_lat, center_lon, z_dem)
     x0, y0 = round(fx) - n // 2, round(fy) - n // 2
     dem = mosaic("https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png", z_dem, x0, y0, n)
     k = 2                                                         # imagery one zoom finer, 2x2 per DEM tile
-    img = mosaic(SWISSIMAGE if swiss else EOX, z_dem + 1, x0 * k, y0 * k, n * k, fallback=EOX if swiss else None)
+    src = SWISSIMAGE if swiss else IMG
+    img = mosaic(src or EOX, z_dem + 1, x0 * k, y0 * k, n * k, fallback=EOX if src else None)
     px, W = dem.load(), dem.width
     raw = [[px[x, y][0] * 256 + px[x, y][1] + px[x, y][2] / 256 - 32768 for x in range(W)] for y in range(W)]
     hs = []
@@ -86,7 +97,7 @@ def level(name, z_dem, center_lat, center_lon, grid, n=4, swiss=False):
                       + raw[iy + 1][ix] * (1 - tx) * ty + raw[iy + 1][ix + 1] * tx * ty)
     if name == "near":
         level.near = (raw, W, x0, y0, n, z_dem)               # fallback heights for the peak level
-    lo = min(hs)
+    hs, lo = fit16(hs)
     (OUT / f"{name}.bin").write_bytes(b"".join(int(round((h - lo) * 10)).to_bytes(2, "little") for h in hs))
     img.save(OUT / f"{name}.jpg", quality=86)
     tile_m = CIRC * math.cos(math.radians(LAT)) / 2 ** z_dem
@@ -161,7 +172,7 @@ def peak_level(half=3000, grid=640, z_img=15):
                 h, holes = near_h(tx, ty), holes + 1
             hs.append(h)
     print(f"peak: {holes} of {grid * grid} vertices filled from the 30 m model")
-    lo = min(hs)
+    hs, lo = fit16(hs)
     (OUT / "peak.bin").write_bytes(b"".join(int(round((h - lo) * 10)).to_bytes(2, "little") for h in hs))
 
     # aerial photo cropped exactly to the square
@@ -175,6 +186,33 @@ def peak_level(half=3000, grid=640, z_img=15):
     return {"grid": grid, "size": 2 * half, "min": round(lo, 1), "max": round(max(hs), 1), "center": [0, 0]}
 
 
+def peak_open(half=3000, grid=640, z=15, z_img=16):
+    """Outside CH: 6 km around the summit from AWS terrarium z15 (best source there, e.g. 10 m in AT) + IMG orthophoto."""
+    tile_m = CIRC * math.cos(math.radians(LAT)) / 2 ** z
+    px_, py_ = tile_xy(LAT, LON, z)
+    tx0, ty0 = int(px_ - half / tile_m), int(py_ - half / tile_m)
+    nt = int(px_ + half / tile_m) - tx0 + 1
+    dem = mosaic("https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png", z, tx0, ty0, nt)
+    px, W = dem.load(), dem.width
+    def hgt(sx, sy):
+        ix, iy = min(max(int(sx), 0), W - 2), min(max(int(sy), 0), W - 2)
+        fx, fy = sx - ix, sy - iy
+        v = [px[ix, iy], px[ix + 1, iy], px[ix, iy + 1], px[ix + 1, iy + 1]]
+        v = [p[0] * 256 + p[1] + p[2] / 256 - 32768 for p in v]
+        return v[0] * (1 - fx) * (1 - fy) + v[1] * fx * (1 - fy) + v[2] * (1 - fx) * fy + v[3] * fx * fy
+    hs = [hgt((px_ + (-half + gx * 2 * half / (grid - 1)) / tile_m - tx0) * 256, (py_ + (-half + gy * 2 * half / (grid - 1)) / tile_m - ty0) * 256)
+          for gy in range(grid) for gx in range(grid)]
+    hs, lo = fit16(hs)
+    (OUT / "peak.bin").write_bytes(b"".join(int(round((h - lo) * 10)).to_bytes(2, "little") for h in hs))
+    k = 2 ** (z_img - z)
+    fx0, fy0, fx1, fy1 = (px_ - half / tile_m) * k, (py_ - half / tile_m) * k, (px_ + half / tile_m) * k, (py_ + half / tile_m) * k
+    ix0, iy0 = int(fx0), int(fy0)
+    img = mosaic(IMG or EOX, z_img, ix0, iy0, int(fy1) - iy0 + 1, nx=int(fx1) - ix0 + 1, fallback=EOX if IMG else None)
+    box = tuple(round(v * 256) for v in (fx0 - ix0, fy0 - iy0, fx1 - ix0, fy1 - iy0))
+    img.crop(box).resize((2048, 2048), Image.LANCZOS).save(OUT / "peak.jpg", quality=88)
+    return {"grid": grid, "size": 2 * half, "min": round(lo, 1), "max": round(max(hs), 1), "center": [0, 0]}
+
+
 OUT.mkdir(parents=True, exist_ok=True)
 # near square centred between peak and camera so both the peak and the foreground are detailed
 b = math.radians(CAM_BEARING)
@@ -182,9 +220,11 @@ mid_n, mid_e = math.cos(b) * CAM_DIST / 2, math.sin(b) * CAM_DIST / 2      # met
 mlat = LAT + mid_n / 111320
 mlon = LON + mid_e / (111320 * math.cos(math.radians(LAT)))
 meta = {"name": NAME, "lat": LAT, "lon": LON, "cam": [CAM_BEARING, CAM_DIST],
-        "near": level("near", 13, mlat, mlon, 640, swiss=True), "far": level("far", 11, LAT, LON, 256),
+        "near": level("near", 13, mlat, mlon, 640, swiss=SWISS), "far": level("far", 11, LAT, LON, 256),
         "credit": "Terén a snímky: © swisstopo (swissALTI3D, SWISSIMAGE) · AWS Terrain Tiles · Sentinel-2 cloudless 2016 © EOX (CC BY 4.0)"}
-meta["peak"] = peak_level()
+if VIEW: meta["view"] = VIEW
+meta["peak"] = peak_level() if SWISS else peak_open()
+if not SWISS: meta["credit"] = os.environ.get("CREDIT", "") + "AWS Terrain Tiles · Sentinel-2 cloudless 2016 © EOX (CC BY 4.0)"
 (OUT / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1))
 for f in ("height.bin", "color.jpg"):
     (OUT / f).unlink(missing_ok=True)

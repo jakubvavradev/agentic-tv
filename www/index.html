@@ -174,7 +174,8 @@ const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(1) + ' M' : n >= 1e3 ? (n / 1e3).t
 const post = (p, body) => fetch(p, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {})});
 const q = new URLSearchParams(location.search);
 // previews: ?h=18.5 (time of day)  ?code=71&clouds=90&t=-3 (weather)  ?date=2026-01-15 (season)
-if (q.has('h') || q.has('date')) window.__VAVRA_TIME__ = () => {
+if (q.has('ts')) window.__VAVRA_TIME__ = () => new Date(+q.get('ts'));   // exact instant (renders of peaks in other time zones)
+else if (q.has('h') || q.has('date')) window.__VAVRA_TIME__ = () => {
   const d = q.has('date') ? new Date(q.get('date') + 'T12:00') : new Date(), h = q.has('h') ? +q.get('h') : d.getHours() + d.getMinutes() / 60;
   d.setHours(Math.floor(h), Math.round((h % 1) * 60), 0, 0); return d;
 };
