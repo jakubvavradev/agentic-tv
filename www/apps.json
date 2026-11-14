@@ -1,0 +1,11 @@
+[
+  {"id": "claude",   "name": "Claude",    "logo": "claude",       "bg": "#D97757", "fg": "#FFFFFF", "view": "agent"},
+  {"id": "youtube",  "name": "YouTube",   "logo": "youtube",      "bg": "#FFFFFF", "fg": "#FF0000", "url": "https://www.youtube.com/tv", "ua": "tv"},
+  {"id": "netflix",  "name": "Netflix",   "logo": "netflix",      "bg": "#000000", "fg": "#E50914", "url": "https://www.netflix.com/browse"},
+  {"id": "hbomax",   "name": "HBO Max",   "logo": "hbomax",       "bg": "linear-gradient(140deg,#5b2be0,#160750)", "fg": "#FFFFFF", "url": "https://play.hbomax.com"},
+  {"id": "spotify",  "name": "Spotify",   "logo": "spotify",      "bg": "#121212", "fg": "#1ED760", "url": "https://open.spotify.com"},
+  {"id": "appletv",  "name": "Apple TV",  "logo": "appletv",      "bg": "#000000", "fg": "#FFFFFF", "url": "https://tv.apple.com"},
+  {"id": "twitch",   "name": "Twitch",    "logo": "twitch",       "bg": "#9146FF", "fg": "#FFFFFF", "url": "https://www.twitch.tv"},
+  {"id": "web",      "name": "Chrome",    "logo": "googlechrome", "bg": "#FFFFFF", "fg": "#4285F4", "url": "https://www.google.com"},
+  {"id": "settings", "name": "Nastavení", "logo": "settings",     "bg": "linear-gradient(140deg,#a3aab6,#5b616e)", "fg": "#FFFFFF", "view": "settings"}
+]

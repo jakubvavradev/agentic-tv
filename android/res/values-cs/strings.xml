@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="app_name">Agentic TV</string>
+  <string name="keys_desc">Když na domovské obrazovce zmáčkneš mikrofon, místo Google Asistenta se spustí hlasové příkazy Agentic TV. Sleduje jen okna Google Asistenta, jinde se nic nemění.</string>
+  <string name="keys_label">Agentic TV – hlasové ovládání</string>
+</resources>

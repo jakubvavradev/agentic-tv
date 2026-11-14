@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="cs">
+<meta charset="utf-8">
+<title>VAVRA OS</title>
+<style>
+@font-face{font-family:Inter;font-weight:100 900;font-display:block;src:url(fonts/inter-latin.woff2) format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-weight:100 900;font-display:block;src:url(fonts/inter-latin-ext.woff2) format("woff2");
+  unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+:root{
+  --edge:rgba(255,255,255,.3);--fg:#fff;--dim:rgba(255,255,255,.66);--faint:rgba(255,255,255,.42);
+  --spring:cubic-bezier(.2,.9,.25,1.12);--ease:cubic-bezier(.3,.7,.2,1);
+  font-family:Inter,"Noto Sans",system-ui,sans-serif;font-feature-settings:"cv11","ss01";
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#05070d;color:var(--fg);cursor:none;-webkit-font-smoothing:antialiased}
+canvas.layer{position:fixed;inset:0;width:100vw;height:100vh;display:block;transition:filter .6s var(--ease)}
+#bg{z-index:0}#fg{z-index:2}
+body.dim canvas.layer,body.dim #clock{filter:brightness(.55) saturate(1.1)}
+
+/* ---------- liquid glass ---------- */
+.glass{background:linear-gradient(155deg,rgba(255,255,255,.24),rgba(255,255,255,.1) 42%,rgba(255,255,255,.06));
+  -webkit-backdrop-filter:blur(28px) saturate(185%);backdrop-filter:blur(28px) saturate(185%);
+  border:1px solid var(--edge);border-radius:2.6vh;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -1px 0 rgba(255,255,255,.1),inset 0 0 2vh rgba(255,255,255,.05),0 2vh 5vh rgba(0,0,0,.25)}
+
+/* ---------- lock-screen clock: liquid glass digits between the far range and the near peak ---------- */
+#clock{position:fixed;z-index:1;left:50%;top:6.4vh;width:min(72vw,135vh);height:40vh;transform:translateX(-50%);transition:filter .6s}
+/* frost = plain CSS glass that every GPU path renders; bend = SVG refraction on top where supported */
+#clock .frost,#clock .bend{position:absolute;inset:0;-webkit-mask:var(--m) 0 0/100% 100% no-repeat;mask:var(--m) 0 0/100% 100% no-repeat}
+#clock .frost{-webkit-backdrop-filter:blur(12px) saturate(175%) brightness(1.35);backdrop-filter:blur(12px) saturate(175%) brightness(1.35);
+  background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.08) 55%,rgba(255,255,255,.14))}
+#clock .bend{-webkit-backdrop-filter:url(#lg);backdrop-filter:url(#lg);opacity:.55}
+#clock canvas{position:absolute;inset:0;width:100%;height:100%}
+#date{position:fixed;z-index:3;top:3.4vh;left:0;right:0;text-align:center;font-size:2.5vh;font-weight:600;letter-spacing:-.005em;text-shadow:0 1px 10px rgba(0,0,0,.28)}
+#chip{position:fixed;z-index:3;top:2.8vh;right:2.6vw;padding:.9vh 1.7vh;border-radius:99px;font-size:1.6vh;display:flex;gap:1vh;align-items:center}
+#chip b{letter-spacing:.12em}
+.dot{width:.9vh;height:.9vh;border-radius:50%;background:#7cf3a0}.dot.busy{background:#ffd36e;animation:blink 1.2s infinite}.dot.off{background:#ff7a90}
+@keyframes blink{50%{opacity:.3}}
+
+/* ---------- widgets ---------- */
+#widgets{position:fixed;z-index:3;left:5vw;right:5vw;bottom:17.5vh;height:16.5vh;display:grid;grid-template-columns:1.3fr 1.2fr 1fr 1fr;gap:1.5vw;
+  transition:opacity .45s var(--ease),transform .55s var(--spring)}
+body.live #widgets{opacity:0;transform:translateY(4vh) scale(.97);pointer-events:none}
+.w{padding:1.7vh 2.1vh;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.w h3{font-size:1.5vh;font-weight:600;color:var(--dim);display:flex;gap:.7vh;align-items:center;margin-bottom:.9vh;white-space:nowrap}
+.w h3 svg{width:1.6vh;height:1.6vh;fill:currentColor}
+.w .big{font-size:2.4vh;font-weight:650;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w .sub{font-size:1.6vh;color:var(--dim);line-height:1.38;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.w .foot{margin-top:auto;font-size:1.4vh;color:var(--faint)}
+.days{display:grid;grid-template-columns:repeat(4,1fr);text-align:center;font-size:1.5vh;margin-top:auto}
+.days i{display:block;font-style:normal;font-size:2.2vh;margin:.25vh 0}.days span{color:var(--dim)}
+.meters{display:grid;grid-template-columns:repeat(3,1fr);margin-top:auto}
+.meters b{display:block;font-size:2.5vh;font-weight:500}.meters span{font-size:1.35vh;color:var(--dim)}
+
+/* ---------- dock ---------- */
+#dock{position:fixed;z-index:4;bottom:3.4vh;left:50%;transform:translateX(-50%);display:flex;gap:1.4vh;padding:1.4vh;border-radius:3.3vh}
+.app{position:relative;width:13.6vh;height:8.6vh;border-radius:1.7vh;display:grid;place-items:center;overflow:hidden;
+  transition:transform .32s var(--spring),box-shadow .32s;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 .5vh 1.4vh rgba(0,0,0,.3)}
+.app svg{width:4.6vh;height:4.6vh}
+.app::after{content:"";position:absolute;inset:-20%;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.42) 50%,transparent 64%);
+  transform:translateX(-110%);transition:transform .75s var(--ease)}
+.app.focus{transform:scale(1.17) translateY(-.9vh);z-index:2;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 2.6vh 4vh rgba(0,0,0,.5),0 0 0 .3vh rgba(255,255,255,.9)}
+.app.focus::after{transform:translateX(110%)}
+#label{position:fixed;z-index:4;bottom:.6vh;left:0;right:0;text-align:center;font-size:1.55vh;color:var(--dim);font-weight:600}
+
+/* ---------- Claude orb: free-floating dotted thinking-orb ---------- */
+#orb{position:fixed;z-index:5;left:50%;bottom:18vh;width:20vh;height:20vh;margin-left:-10vh;
+  opacity:0;transform:scale(.35) translateY(6vh);transition:opacity .4s var(--ease),transform .7s var(--spring)}
+body.live #orb{opacity:1;transform:none}
+#orb canvas{position:absolute;inset:0;width:100%;height:100%;animation:float 6s ease-in-out infinite;
+  filter:drop-shadow(0 .6vh 1.2vh rgba(0,0,0,.35))}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.4vh)}}
+#caption{position:fixed;z-index:5;left:50%;bottom:40vh;width:min(66vw,1200px);transform:translateX(-50%) translateY(2vh);text-align:center;
+  font-size:3.3vh;font-weight:650;line-height:1.25;letter-spacing:-.005em;text-shadow:0 .3vh 2vh rgba(0,0,0,.45);opacity:0;transition:all .45s var(--spring)}
+body.live #caption{opacity:1;transform:translateX(-50%)}
+#caption .k{font-size:1.5vh;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:1.2vh}
+#caption .keys{font-size:1.9vh;font-weight:500;color:var(--dim);margin-top:1.6vh;display:flex;gap:2.4vh;justify-content:center}
+kbd{font:inherit;color:#fff;padding:.25vh 1.1vh;border-radius:.9vh;background:rgba(255,255,255,.18);border:1px solid var(--edge);margin-right:.6vh}
+
+/* ---------- side panels: what Claude is doing / what Claude shows ---------- */
+.side{position:fixed;z-index:5;top:12vh;bottom:22vh;width:27vw;padding:2.4vh 2.6vh;display:flex;flex-direction:column;gap:1.4vh;
+  opacity:0;transition:opacity .4s var(--ease),transform .55s var(--spring);pointer-events:none}
+#work{right:2.6vw;transform:translateX(4vh)}#card{left:2.6vw;transform:translateX(-4vh)}
+.side.on{opacity:1;transform:none}
+.side .k{font-size:1.45vh;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.side h2{font-size:2.6vh;font-weight:700;line-height:1.2}
+#steps{display:flex;flex-direction:column;gap:1vh;overflow:hidden;justify-content:flex-end;flex:1;
+  -webkit-mask-image:linear-gradient(transparent,#000 18%);mask-image:linear-gradient(transparent,#000 18%)}
+.st{display:flex;gap:1.1vh;align-items:flex-start;font-size:1.6vh;color:var(--dim);animation:in .45s var(--spring)}
+.st i{flex:none;width:2.6vh;height:2.6vh;border-radius:.8vh;display:grid;place-items:center;font-style:normal;font-size:1.3vh;font-weight:700;
+  background:rgba(255,255,255,.14);color:#fff}
+.st span{min-width:0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+.st.now{color:#fff}.st.now i{background:#d97757}
+.st.say span{color:#fff;font-style:italic}
+@keyframes in{from{opacity:0;transform:translateY(1.2vh)}}
+#card .body{font-size:1.9vh;line-height:1.5;color:rgba(255,255,255,.88);white-space:pre-wrap;overflow:hidden;flex:1}
+#card img{max-width:100%;max-height:40vh;border-radius:1.4vh;object-fit:cover}
+#card iframe{border:0;width:100%;flex:1;border-radius:1.2vh;background:transparent}
+
+/* ---------- centre sheet (setup / settings / history) ---------- */
+#sheet{position:fixed;z-index:6;left:50%;top:50%;width:min(62vw,1100px);max-height:76vh;padding:3.4vh 4vh;border-radius:3.4vh;
+  transform:translate(-50%,-46%) scale(.94);opacity:0;pointer-events:none;transition:all .45s var(--spring);display:flex;flex-direction:column;gap:2vh;
+  -webkit-backdrop-filter:blur(44px) saturate(190%);backdrop-filter:blur(44px) saturate(190%)}
+body.sheet #sheet{transform:translate(-50%,-50%) scale(1);opacity:1}
+#sheet .k{font-size:1.55vh;font-weight:700;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
+#sheet .cmd{font-size:3.8vh;font-weight:650;line-height:1.2}
+.keys{display:flex;gap:2.4vh;color:var(--dim);font-size:1.8vh;flex-wrap:wrap}
+.steps{list-style:none;display:flex;flex-direction:column;gap:1.5vh;font-size:2.2vh}
+.steps li{display:flex;gap:1.5vh;align-items:baseline}.steps li i{font-style:normal;width:2.5vh;color:var(--dim)}
+.steps li.done{color:var(--dim)}.steps li.done i{color:#7cf3a0}
+.steps b,.hl{color:#a8f5d9;letter-spacing:.04em}
+.langs{display:flex;gap:1.2vh;flex-wrap:wrap}
+.lang{padding:.9vh 1.8vh;border-radius:99px;border:1px solid var(--edge);font-size:1.8vh;transition:all .25s var(--spring)}
+.lang.sel{background:#fff;color:#111;font-weight:700}.lang.focus{transform:scale(1.1);background:rgba(255,255,255,.28)}.lang.sel.focus{background:#fff}
+.hist{display:flex;flex-direction:column;gap:1.3vh;overflow:hidden}
+.hist>div{padding-bottom:1.1vh;border-bottom:1px solid rgba(255,255,255,.13)}
+.hist .q{font-weight:650;font-size:2vh}.hist .a{color:var(--dim);font-size:1.65vh;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hist .m{font-size:1.35vh;color:var(--faint);margin-top:.3vh}.hist .bad .q{color:#ffa3b1}
+.credit{font-size:1.25vh;color:var(--faint)}
+.setup{display:flex;flex-direction:column;gap:2vh;overflow:hidden;max-height:68vh}
+.sec{display:flex;flex-direction:column;gap:.7vh}
+.sec h4{font-size:1.45vh;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:.3vh}
+.list{display:flex;flex-direction:column;gap:.5vh;max-height:24vh;overflow:hidden}
+.row{display:flex;gap:1.3vh;align-items:center;padding:1vh 1.6vh;border-radius:1.4vh;font-size:2.05vh;transition:background .2s,transform .3s var(--spring),box-shadow .2s}
+.row i{font-style:normal;width:2.4vh;text-align:center;color:var(--dim)}
+.row.done{color:var(--dim)}.row.done i{color:#7cf3a0}
+.row.warn{color:#ffb3a7}
+.focus.row,.focus.inp,.focus.langs{background:rgba(255,255,255,.2);box-shadow:0 1vh 2.4vh rgba(0,0,0,.25);transform:scale(1.015)}
+.inp{width:100%;font:inherit;font-size:2.1vh;color:#fff;background:rgba(0,0,0,.28);border:0;border-radius:1.4vh;padding:1.1vh 1.6vh;outline:none;caret-color:#fff}
+.inp::placeholder{color:var(--faint)}
+.msg{font-size:1.65vh;color:var(--dim);padding:0 1.6vh;white-space:pre-line}
+.langs{padding:.8vh;border-radius:1.6vh}
+</style>
+<body>
+<canvas class="layer" id="bg"></canvas>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="lg" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feImage id="lgmap" x="0" y="0" preserveAspectRatio="none" result="map"/>
+    <feDisplacementMap id="lgdisp" in="SourceGraphic" in2="map" scale="60" xChannelSelector="R" yChannelSelector="G" result="bent"/>
+    <feGaussianBlur in="bent" stdDeviation="0.6" result="soft"/>
+    <feColorMatrix in="soft" type="saturate" values="1.45" result="sat"/>
+    <feComponentTransfer in="sat"><feFuncR type="linear" slope="1.06" intercept=".012"/><feFuncG type="linear" slope="1.06" intercept=".012"/><feFuncB type="linear" slope="1.06" intercept=".02"/></feComponentTransfer>
+  </filter>
+</svg>
+<div id="clock"><div class="frost"></div><div class="bend"></div><canvas id="rim"></canvas></div>
+<canvas class="layer" id="fg"></canvas>
+
+<div id="date"></div>
+<div id="chip" class="glass"></div>
+<section id="widgets">
+  <div class="w glass" id="wClaude"></div><div class="w glass" id="wWeather"></div>
+  <div class="w glass" id="wSys"></div><div class="w glass" id="wPhone"></div>
+</section>
+<nav id="dock" class="glass"></nav>
+<div id="label"></div>
+
+<div id="orb"><canvas id="orbCv"></canvas></div>
+<div id="caption"></div>
+<aside id="work" class="side glass"><div class="k">Claude pracuje</div><h2 id="workTitle"></h2><div id="steps"></div></aside>
+<aside id="card" class="side glass"></aside>
+<div id="sheet" class="glass"></div>
+
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
+<script type="module">
+import { createScene } from './scene.js';
+import { liquidGlassText } from './glass.js';
+import { createOrb } from './orb.js';
+
+/* ======================= helpers ======================= */
+const $ = id => document.getElementById(id);
+const el = (tag, cls, ...kids) => { const e = document.createElement(tag); if (cls) e.className = cls; e.append(...kids.filter(k => k != null && k !== false)); return e; };
+const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(1) + ' M' : n >= 1e3 ? (n / 1e3).toFixed(1) + ' k' : String(n);
+const post = (p, body) => fetch(p, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {})});
+const q = new URLSearchParams(location.search);
+// previews: ?h=18.5 (time of day)  ?code=71&clouds=90&t=-3 (weather)  ?date=2026-01-15 (season)
+if (q.has('h') || q.has('date')) window.__VAVRA_TIME__ = () => {
+  const d = q.has('date') ? new Date(q.get('date') + 'T12:00') : new Date(), h = q.has('h') ? +q.get('h') : d.getHours() + d.getMinutes() / 60;
+  d.setHours(Math.floor(h), Math.round((h % 1) * 60), 0, 0); return d;
+};
+const now = () => window.__VAVRA_TIME__ ? window.__VAVRA_TIME__() : new Date();
+
+let scene = null;
+const orb = createOrb(document.getElementById('orbCv'));
+createScene($('bg'), $('fg')).then(s => { scene = s; if (S) scene.setWeather(weather(S)); }).catch(e => console.error('scene', e));
+const weather = s => q.has('code') ? {code: +q.get('code'), clouds: +(q.get('clouds') || 80), t: +(q.get('t') || 5), wind: 15, lat: 50.08, lon: 14.42} : s.weather;
+
+/* ======================= lock-screen clock ======================= */
+let clockKey = '';
+function paintClock(force) {
+  const d = now(), t = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  $('date').textContent = new Intl.DateTimeFormat(lang(), {weekday: 'long', day: 'numeric', month: 'long'}).format(d).replace(/^./, c => c.toUpperCase())
+    + (S && S.weather ? `   ${WX(S.weather.code)[0]} ${S.weather.t}°` : '');
+  const key = t + innerWidth + 'x' + innerHeight;
+  if (key === clockKey && !force) return;
+  clockKey = key;
+  liquidGlassText($('clock'), $('clock'), $('rim'), $('lgmap'), $('lgdisp'), t);
+}
+addEventListener('resize', () => paintClock(true));
+const lang = () => (S && S.lang) || 'cs';
+
+/* ======================= weather codes (WMO) ======================= */
+function WX(c) {
+  if (c === 0) return ['☀︎', 'Jasno']; if (c <= 2) return ['⛅︎', 'Polojasno']; if (c === 3) return ['☁︎', 'Zataženo'];
+  if (c <= 48) return ['≋', 'Mlha']; if (c <= 67 || (c >= 80 && c <= 82)) return ['☂︎', 'Déšť'];
+  if (c <= 77 || c === 85 || c === 86) return ['❄︎', 'Sníh']; return ['⚡︎', 'Bouřky'];
+}
+
+/* ======================= dock with real logos ======================= */
+let APPS = [], focusIdx = 1, view = null, setupHidden = false, langIdx = 0;
+const LANGS = [['cs', 'Čeština'], ['sk', 'Slovenčina'], ['en', 'English'], ['de', 'Deutsch'], ['pl', 'Polski'], ['fr', 'Français'], ['es', 'Español']];
+(async () => {
+  APPS = await (await fetch('apps.json')).json();
+  const logos = await Promise.all(APPS.map(a => fetch(`logos/${a.logo}.svg`).then(r => r.text())));
+  $('dock').replaceChildren(...APPS.map((a, i) => {
+    const t = el('div', 'app'); t.style.background = a.bg; t.innerHTML = logos[i];
+    const svg = t.querySelector('svg'); svg.setAttribute('fill', a.fg); svg.querySelector('title')?.remove();
+    t.onclick = () => { setFocus(i); openApp(a); };
+    return t;
+  }));
+  setFocus(focusIdx);
+})();
+function setFocus(i) {
+  focusIdx = (i + APPS.length) % APPS.length;
+  [...$('dock').children].forEach((t, j) => t.classList.toggle('focus', j === focusIdx));
+  $('label').textContent = APPS[focusIdx]?.name || '';
+}
+function openApp(a) { if (a.view) { view = a.view; render(); } else post('/launch', {app: a.id}); }
+
+/* ======================= render state ======================= */
+let S = null, lastTs = null, lastWeather = '';
+const PH = {idle: 'Připraven', pending: 'Čeká na potvrzení', running: 'Pracuje…'};
+const CL = {missing: 'čeká na internet', installing: 'instaluji Claude Code…', login: 'vyber „Přihlásit se ke Claude“ a stiskni Enter', ok: 'přihlášeno'};
+const TOOL = {Bash: '>_', Read: '◧', Edit: '✎', Write: '✎', MultiEdit: '✎', Grep: '⌕', Glob: '⌕', WebFetch: '◎', WebSearch: '◎', Task: '✦', TodoWrite: '☑'};
+const ICON = {
+  claude: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 1v5M12 18v5M1 12h5M18 12h5M4.2 4.2l3.5 3.5M16.3 16.3l3.5 3.5M4.2 19.8l3.5-3.5M16.3 7.7l3.5-3.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+  cloud: '<svg viewBox="0 0 24 24"><path d="M7 19a5 5 0 0 1-.6-10A7 7 0 0 1 19.6 11 4 4 0 0 1 18 19z"/></svg>',
+  chip: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3" stroke="currentColor" stroke-width="2"/></svg>',
+  phone: '<svg viewBox="0 0 24 24"><rect x="6" y="1.5" width="12" height="21" rx="3"/></svg>',
+};
+const h3 = (icon, text, extra) => { const h = el('h3', ''); h.innerHTML = ICON[icon]; h.append(text, extra || ''); return h; };
+
+const back = label => el('div', 'keys', el('span', '', el('kbd', '', 'Esc'), label));
+
+/* ======================= setup & settings, driven by the keyboard ======================= */
+// Built once per structural change (not every state tick) so typed text and focus survive.
+let setupEl = null, setupKey = '', navIdx = 0, pickedSsid = '', pickedDisk = '', loginOpened = '';
+const navItems = () => setupEl ? [...setupEl.querySelectorAll('[data-nav]')] : [];
+function applyNav() {
+  const items = navItems();
+  navIdx = Math.max(0, Math.min(navIdx, items.length - 1));
+  items.forEach((x, i) => x.classList.toggle('focus', i === navIdx));
+  const cur = items[navIdx];
+  if (!cur) return;
+  cur.scrollIntoView({block: 'nearest'});
+  if (cur.tagName === 'INPUT') cur.focus(); else document.activeElement?.blur?.();
+}
+function navRow(icon, text, activate, cls = '') {
+  const r = el('div', 'row ' + cls, el('i', '', icon), el('span', '', text));
+  r.dataset.nav = 'row'; r.activate = activate;
+  return r;
+}
+function navInput(placeholder, type, onEnter) {
+  const i = el('input', 'inp'); i.placeholder = placeholder; i.type = type; i.dataset.nav = 'input';
+  i.spellcheck = false; i.autocomplete = 'off'; i.onenter = () => onEnter(i.value.trim());
+  return i;
+}
+function buildSetup(s) {
+  const u = s.setup, ready = u.net && u.claude === 'ok';
+  const wifi = el('div', 'sec', el('h4', '', 'Wi-Fi'));
+  if (u.net) wifi.append(el('div', 'row done', el('i', '', '✓'), el('span', '', 'Připojeno k internetu')));
+  else {
+    const list = el('div', 'list');
+    for (const ssid of u.networks) {
+      list.append(navRow('◠', ssid, () => { pickedSsid = ssid; setupKey = ''; render(); }));
+      if (ssid === pickedSsid) list.append(navInput(`Heslo k síti ${ssid} (prázdné = otevřená síť)`, 'password', psk => { post('/wifi', {ssid, psk}); pickedSsid = ''; setupKey = ''; render(); }));
+    }
+    wifi.append(list, navRow('↻', u.networks.length ? 'Hledat sítě znovu' : 'Hledat Wi-Fi sítě', () => post('/wifi/scan')));
+  }
+  wifi.append(el('div', 'msg wifimsg'));
+
+  const claude = el('div', 'sec', el('h4', '', 'Claude'));
+  if (u.claude === 'ok') claude.append(el('div', 'row done', el('i', '', '✓'), el('span', '', 'Přihlášeno')));
+  else if (u.claude === 'login' && !u.login_url) claude.append(navRow('→', 'Přihlásit se ke Claude', () => post('/login/start')));
+  else if (u.login_url) claude.append(
+    el('div', 'msg', 'Přihlašovací stránka se otevřela v okně. Přihlas se, zkopíruj kód (Ctrl+C), stiskni F12 a vlož ho sem (Ctrl+V).'),
+    navInput('Kód z přihlašovací stránky', 'text', code => code && post('/login/code', {code})),
+    navRow('↗', 'Znovu otevřít přihlašovací stránku', () => post('/launch', {url: u.login_url})));
+  claude.append(el('div', 'msg loginmsg'));
+
+  let install = null;
+  if (u.live) {
+    install = el('div', 'sec', el('h4', '', 'Uložit systém na disk'));
+    if (u.install === 'done') install.append(el('div', 'row done', el('i', '', '✓'), el('span', '', 'Nainstalováno na disk')));
+    else if (u.install !== 'running') {
+      install.append(el('div', 'msg', 'Teď běžíš z flashky a po restartu by se vše zapomnělo. Zkopíruj systém i s nastavením na vnitřní disk – pak flashku nebudeš potřebovat.'));
+      for (const d of u.disks) {
+        install.append(navRow('⇣', d.label, () => { pickedDisk = d.dev; setupKey = ''; render(); }, d.dev === pickedDisk ? 'warn' : ''));
+        if (d.dev === pickedDisk) install.append(navInput(`Smaže CELÝ disk ${d.label}. Napiš ANO a stiskni Enter`, 'text',
+          v => { post('/install', {disk: d.dev, confirm: v.toUpperCase()}); pickedDisk = ''; setupKey = ''; render(); }));
+      }
+      if (!u.disks.length) install.append(el('div', 'msg', 'Nenašel jsem žádný vnitřní disk.'));
+    }
+    install.append(el('div', 'msg installmsg'));
+  }
+  const langs = el('div', 'langs');
+  langs.dataset.nav = 'langs';
+  const langSec = el('div', 'sec', el('h4', '', 'Jazyk a hlas'), langs);
+  const phone = el('div', 'sec', el('h4', '', 'Telefon (volitelné)'), el('div', 'msg pair'));
+  return el('div', 'setup', el('div', 'k', ready ? 'Nastavení' : 'Vítej ve VAVRA OS · nastavení'), wifi, claude, install, langSec, phone,
+    el('div', 'keys', el('span', '', el('kbd', '', '↑ ↓'), 'vybrat'), el('span', '', el('kbd', '', 'Enter'), 'potvrdit'),
+      el('span', '', el('kbd', '', 'Esc'), 'zavřít')),
+    el('div', 'credit', scene ? scene.meta.credit + ' · ' + scene.meta.name : ''));
+}
+function setupView(s) {
+  const u = s.setup, key = JSON.stringify([u.net, u.claude, u.login_url, u.networks, pickedSsid, u.live, u.disks, u.install === 'running' || u.install === 'done', pickedDisk]);
+  if (key !== setupKey || !setupEl) { setupKey = key; setupEl = buildSetup(s); requestAnimationFrame(applyNav); }
+  setupEl.querySelector('.wifimsg').textContent = u.wifi_msg || (u.net ? '' : u.networks.length ? 'Vyber síť šipkami a stiskni Enter.' : '');
+  setupEl.querySelector('.loginmsg').textContent = u.login_msg || (u.claude === 'ok' ? '' : CL[u.claude]);
+  setupEl.querySelector('.installmsg') && (setupEl.querySelector('.installmsg').textContent = u.install_msg || '');
+  setupEl.querySelector('.pair').textContent = `Aplikace VAVRA v telefonu: IP ${s.ip}, PIN ${s.pin}`;
+  setupEl.querySelector('.langs').replaceChildren(...LANGS.map(([c, n], i) => el('div', 'lang' + (c === s.lang ? ' sel' : '') + (i === langIdx ? ' focus' : ''), n)));
+  if (u.login_url && loginOpened !== u.login_url) { loginOpened = u.login_url; post('/launch', {url: u.login_url}); }
+  return setupEl;
+}
+function sheetContent(s) {
+  const ready = s.setup.net && s.setup.claude === 'ok';
+  if (view === 'settings' || (!ready && !setupHidden && !view && s.phase === 'idle' && !s.voice)) return [setupView(s)];
+  if (view === 'agent') return [el('div', 'k', `Claude · ${fmt(s.tokens.in + s.tokens.out)} tokenů · $${s.cost.toFixed(2)}`),
+    s.history.length ? el('div', 'hist', ...s.history.slice(0, 5).map(h => el('div', h.ok ? '' : 'bad',
+      el('div', 'q', h.text), el('div', 'a', h.result),
+      el('div', 'm', `${new Date(h.ts * 1000).toLocaleString(lang())} · ${h.source} · ${fmt(h.tokens)} tok · $${h.cost.toFixed(3)}`))))
+      : el('div', 'cmd', 'Zatím žádné příkazy. Řekni něco do telefonu.'), back('zpět')];
+  return null;
+}
+
+function orbState(s) {
+  if (s.voice) return s.voice;                                   // listening | transcribing | speaking
+  return s.phase === 'idle' ? '' : s.phase;                      // pending | running
+}
+function caption(s, st) {
+  const k = t => el('div', 'k', t);
+  if (st === 'listening') return [k('Poslouchám'), '…'];
+  if (st === 'transcribing') return [k('Rozumím'), '…'];
+  if (st === 'pending') return [k(`Příkaz · ${s.source}`), s.pending,
+    el('div', 'keys', el('span', '', el('kbd', '', 'Enter'), 'potvrdit'), el('span', '', el('kbd', '', 'Esc'), 'zrušit'))];
+  if (st === 'running') { const said = [...s.log].reverse().find(l => l.startsWith('💬')); return [k('Claude'), said ? said.slice(2).trim().slice(0, 160) : s.pending]; }
+  if (st === 'speaking') return [k('Claude'), s.speech.slice(0, 220)];
+  return [];
+}
+function stepEl(line, isNow) {
+  if (line.startsWith('💬')) return el('div', 'st say' + (isNow ? ' now' : ''), el('i', '', '✳'), el('span', '', line.slice(2).trim()));
+  const m = line.match(/^⚙ ([^:]+): ?(.*)$/s);
+  if (!m) return el('div', 'st', el('i', '', '·'), el('span', '', line));
+  const tool = m[1].startsWith('mcp__browser') ? '▣' : TOOL[m[1]] || '•';
+  const name = m[1].startsWith('mcp__browser__') ? m[1].slice(14).replace(/_/g, ' ') : m[1];
+  return el('div', 'st' + (isNow ? ' now' : ''), el('i', '', tool), el('span', '', `${name} · ${m[2]}`));
+}
+
+function render() {
+  const s = S; if (!s) return;
+  const last = s.history[0], st = orbState(s);
+
+  $('chip').replaceChildren(el('span', 'dot' + (s.phase !== 'idle' ? ' busy' : s.setup.claude !== 'ok' ? ' off' : '')),
+    el('span', '', 'Claude'), el('span', '', '·'), el('span', '', s.ip), el('span', '', 'PIN ', el('b', '', s.pin)));
+
+  $('wClaude').replaceChildren(h3('claude', 'Claude'),
+    el('div', 'big', s.setup.claude !== 'ok' ? 'Nepřihlášen' : PH[s.phase]),
+    el('div', 'sub', last ? last.result : 'Řekni nebo napiš příkaz v telefonu.'),
+    el('div', 'foot', `${fmt(s.tokens.in + s.tokens.out)} tokenů · $${s.cost.toFixed(2)}`));
+  const W = s.weather;
+  $('wWeather').replaceChildren(h3('cloud', 'Počasí', W ? ` · ${W.t}° ${WX(W.code)[1]}` : ''),
+    ...(W ? [el('div', 'days', ...W.days.map(([d, c, hi, lo], i) => el('div', '',
+        i ? new Date(d).toLocaleDateString(lang(), {weekday: 'short'}) : 'Dnes', el('i', '', WX(c)[0]), el('span', '', `${hi}° ${lo}°`))))]
+      : [el('div', 'sub', 'Čekám na internet…')]));
+  const y = s.sys, top = s.procs[0];
+  $('wSys').replaceChildren(h3('chip', 'Systém'), el('div', 'sub', top ? `nejvíc ${top[1]} · ${top[2]} % CPU` : ''),
+    el('div', 'meters', el('div', '', el('b', '', y.load), el('span', '', 'zátěž')),
+      el('div', '', el('b', '', y.mem + '%'), el('span', '', 'RAM')), el('div', '', el('b', '', y.temp != null ? y.temp + '°' : '–'), el('span', '', 'CPU'))));
+  $('wPhone').replaceChildren(h3('phone', 'Telefon'), el('div', 'big', s.paired ? `Spárováno ${s.paired}×` : 'Nespárováno'),
+    el('div', 'sub', s.setup.ap ? `Wi-Fi ${s.setup.ap.ssid} · ${s.setup.ap.psk}` : `${s.ip}:8765`), el('div', 'foot', `PIN ${s.pin}`));
+
+  // orb + caption
+  document.body.classList.toggle('live', !!st);
+  $('orb').dataset.s = st;
+  orb.setState(st);
+  if (st) $('caption').replaceChildren(...caption(s, st));
+
+  // work panel: Claude's steps, newest at the bottom
+  $('work').classList.toggle('on', s.phase === 'running');
+  if (s.phase === 'running') {
+    $('workTitle').textContent = s.pending;
+    const lines = s.log.slice(-12);
+    $('steps').replaceChildren(...lines.map((l, i) => stepEl(l, i === lines.length - 1)));
+  }
+
+  // card from `vavra show`
+  const c = s.card;
+  $('card').classList.toggle('on', !!c);
+  if (c && $('card').dataset.v !== JSON.stringify(c)) {
+    $('card').dataset.v = JSON.stringify(c);
+    const kids = [el('div', 'k', 'Claude ukazuje'), c.title && el('h2', '', c.title)];
+    if (c.image) { const im = el('img'); im.src = c.image; kids.push(im); }
+    if (c.html) {
+      const f = el('iframe'); f.sandbox = 'allow-scripts';
+      f.srcdoc = `<style>html{color:#fff;font:15px/1.5 "Noto Sans",sans-serif;background:transparent}a{color:#a8f5d9}</style>${c.html}`;
+      kids.push(f);
+    } else if (c.text) kids.push(el('div', 'body', c.text));
+    $('card').replaceChildren(...kids);
+  }
+
+  // centre sheet
+  const content = sheetContent(s);
+  document.body.classList.toggle('sheet', !!content);
+  document.body.classList.toggle('dim', !!content || !!st);
+  if (content && !(content[0] === setupEl && $('sheet').firstChild === setupEl)) $('sheet').replaceChildren(...content);
+
+  // scene follows weather; pauses while an app window covers it
+  const wkey = JSON.stringify(weather(s));
+  if (scene && wkey !== lastWeather) { lastWeather = wkey; scene.setWeather(weather(s)); }
+  scene?.setPaused(!!s.app);
+  lastTs = last ? last.ts : 0;
+  paintClock();
+}
+
+new EventSource('/events').onmessage = e => { S = JSON.parse(e.data); render(); };
+
+/* ======================= TV remote / keyboard ======================= */
+addEventListener('keydown', e => {
+  const k = e.key, sheet = document.body.classList.contains('sheet');
+  if (sheet && setupEl && $('sheet').firstChild === setupEl) {
+    const cur = navItems()[navIdx];
+    if (k === 'ArrowDown' || k === 'ArrowUp') { navIdx += k === 'ArrowDown' ? 1 : -1; applyNav(); }
+    else if (cur?.dataset.nav === 'langs' && (k === 'ArrowLeft' || k === 'ArrowRight')) { langIdx = (langIdx + (k === 'ArrowRight' ? 1 : -1) + LANGS.length) % LANGS.length; render(); }
+    else if (cur?.tagName === 'INPUT' && k !== 'Enter' && k !== 'Escape') return;           // typing goes into the field
+    else if (k === 'Enter') { if (cur?.tagName === 'INPUT') cur.onenter(); else if (cur?.dataset.nav === 'langs') post('/lang', {lang: LANGS[langIdx][0]}); else cur?.activate?.(); }
+    else if (k === 'Escape') { view = null; setupHidden = true; document.activeElement?.blur?.(); render(); }
+    else return;
+    e.preventDefault();
+    return;
+  }
+  if (k === 'ArrowRight' || k === 'ArrowLeft') {
+    const d = k === 'ArrowRight' ? 1 : -1;
+    if (!sheet) setFocus(focusIdx + d);
+  } else if (k === 'Enter' || k === ' ') {
+    if (S && S.phase === 'pending') post('/confirm');
+    else if (!sheet) openApp(APPS[focusIdx]);
+  } else if (['Escape', 'Backspace', 'BrowserBack', 'GoBack'].includes(k)) {
+    if (S && S.phase !== 'idle') post('/cancel');
+    else if (S && S.card) post('/show', {clear: true});
+    else { view = null; setupHidden = true; render(); }
+  } else return;
+  e.preventDefault();
+});
+
+paintClock();
+setInterval(paintClock, 1000);
+</script>

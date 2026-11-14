@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="app_name">Agentic TV</string>
+  <string name="keys_desc">Press the remote\'s mic button on the home screen and Agentic TV\'s own voice commands start instead of Google Assistant. Watches only Google Assistant\'s windows; nothing changes elsewhere.</string>
+  <string name="keys_label">Agentic TV – voice control</string>
+</resources>
