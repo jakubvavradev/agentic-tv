@@ -50,7 +50,7 @@ Short version (full guide with pictures: [docs/INSTALL.md](docs/INSTALL.md)):
    onto the TV (the *Downloader* app works, or `adb install`).
 2. Make it the home screen. On Android TV 12+ the stock launcher has to be switched off once over ADB:
    ```sh
-   adb install agentic-tv-1.0.0.apk
+   adb install agentic-tv-*.apk
    adb shell cmd package set-home-activity cz.vavra.home/.MainActivity
    adb shell pm disable-user --user 0 com.google.android.tvlauncher   # Google TV: com.google.android.apps.tv.launcherx
    ```

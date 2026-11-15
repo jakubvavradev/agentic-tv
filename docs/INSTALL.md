@@ -32,7 +32,7 @@ On the computer install [platform-tools](https://developer.android.com/tools/rel
 
 ```sh
 adb connect 192.168.1.50:5555          # your TV's IP; confirm "Allow debugging" on the TV
-adb install agentic-tv-1.0.0.apk       # skip if you installed it with Downloader
+adb install agentic-tv-*.apk       # skip if you installed it with Downloader
 adb shell cmd package set-home-activity cz.vavra.home/.MainActivity
 adb shell pm disable-user --user 0 com.google.android.tvlauncher
 #   Google TV devices use this one instead:

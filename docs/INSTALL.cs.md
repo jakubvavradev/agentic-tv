@@ -31,7 +31,7 @@ Na počítač si nainstaluj [platform-tools](https://developer.android.com/tools
 
 ```sh
 adb connect 192.168.1.50:5555          # IP tvé televize; na TV potvrď „Povolit ladění“
-adb install agentic-tv-1.0.0.apk       # vynech, pokud jsi instaloval přes Downloader
+adb install agentic-tv-*.apk       # vynech, pokud jsi instaloval přes Downloader
 adb shell cmd package set-home-activity cz.vavra.home/.MainActivity
 adb shell pm disable-user --user 0 com.google.android.tvlauncher
 #   na zařízeních s Google TV místo toho:
